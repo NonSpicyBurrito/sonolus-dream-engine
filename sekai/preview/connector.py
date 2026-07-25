@@ -8,7 +8,6 @@ from sonolus.script.sprite import Sprite
 from sekai.lib import archetype_names
 from sekai.lib.connector import (
     ConnectorKind,
-    ConnectorLayer,
     get_active_connector_sprites,
     get_connector_alpha_option,
     get_connector_quality_option,
@@ -18,7 +17,6 @@ from sekai.lib.connector import (
 )
 from sekai.lib.ease import EaseType, ease
 from sekai.lib.layout import get_alpha
-from sekai.lib.level_config import LevelConfig
 from sekai.preview import note
 from sekai.preview.layout import (
     PREVIEW_COLUMN_SECS,
@@ -65,7 +63,6 @@ class PreviewConnector(PreviewArchetype):
             segment_head_alpha=self.segment_head.segment_alpha,
             segment_tail_target_time=self.segment_tail.target_time,
             segment_tail_alpha=self.segment_tail.segment_alpha,
-            layer=self.segment_head.segment_layer,
         )
 
     @property
@@ -101,7 +98,6 @@ def draw_connector(
     segment_head_alpha: float,
     segment_tail_target_time: float,
     segment_tail_alpha: float,
-    layer: ConnectorLayer,
 ):
     if head_target_time == tail_target_time:
         return
@@ -168,7 +164,7 @@ def draw_connector(
     )
 
     match ease_type:
-        case EaseType.NONE | EaseType.LINEAR if head_alpha == tail_alpha and not LevelConfig.dynamic_stages:
+        case EaseType.NONE | EaseType.LINEAR if head_alpha == tail_alpha:
             quality_dist_scale = 0
         case _:
             quality_dist_scale = 100 / PREVIEW_COLUMN_SECS * (tail_target_time - head_target_time)
@@ -212,9 +208,7 @@ def draw_connector(
         )
 
         for col in range(last_col, next_col + 1):
-            z = get_connector_z(
-                kind, get_adjusted_time(segment_head_target_time, col), segment_head_lane, active=False, layer=layer
-            )
+            z = get_connector_z(kind, get_adjusted_time(segment_head_target_time, col), segment_head_lane, active=False)
             start_y = time_to_preview_y(last_target_time, col)
             end_y = time_to_preview_y(next_target_time, col)
             for layout in layout_preview_slide_connector_segment(

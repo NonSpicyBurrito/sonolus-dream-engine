@@ -7,129 +7,6 @@ Handles common initialization logic for the engine. Must appear exactly once as 
 ### Fields
 
 * **initialLife (int)**: The initial life value for the level. Defaults to 1000.
-* **firstCamera (ref?[CameraChange])**: An optional reference to the first **CameraChange** entity.
-
-## CameraChange
-
-A camera change event. The presence of at least one **CameraChange** entity enables dynamic stages.
-
-### Fields
-
-* **#BEAT (float)**
-* **lane (float)**: Horizontal camera position in stage lanes. Positive values pan the camera to the right (drawn objects shift left). Defaults to 0.
-* **size (float)**: Visible width of the field, in lanes (half-width). A `size` of 6 covers the full default stage; smaller values zoom in (e.g. `size=3` is 2x zoom). Defaults to 6.
-* **zoom (float)**: Uniform zoom on top of the perspective field. `1` is no zoom, `2` is 2x zoomed in, values below `1` zoom out.
-* **zoomTargetLane (float)**: The lane that the zoom focuses on, **relative to `lane`**. `0` means the zoom expands around the camera's current center (the lane currently sitting at the judge line); positive values shift the focus right (in the lane direction), negative values shift it left. Defaults to 0.
-* **zoomTargetY (float)**: The vertical point mapped onto the anchor, expressed like a pivot `yOffset` (`0` at the judge line, positive moves up the stage along the approach curve). Defaults to 0.
-* **zoomVerticalAlign (ZoomVerticalAlign)**: Where the zoom target is placed vertically on screen. Takes on one of the following values:
-  * DEFAULT = 0
-  * CENTER = 1
-* **rotate (float)**: Camera rotation in degrees about the screen center. Positive values rotate the camera to the left (or equivalently, rotates the world to the right).
-* **stageTilt (float)**: Tilt of the stage perspective, in the range `[0, 1]` where 1 is the default and 0 means a flat vertical stage.
-* **ease (EaseType)**
-* **next (ref?[CameraChange])**: A reference to the next **CameraChange** event.
-
-## Stage
-
-Represents a dynamic stage. The presence of at least one **Stage** enables dynamic stages.
-
-### Fields
-
-* **fromStart (bool)**: If true, draw the stage from the level start, even before the first **StageMaskChange** event.
-* **untilEnd (bool)**: If true, keep drawing the stage through the end of the level, even after the last **StageMaskChange** event.
-* **generateSimLines (GenerateSimLines)**: Controls how notes on this stage participate in simultaneous line generation. Defaults to GLOBAL. Takes on one of the following values:
-  * GLOBAL = 0
-  * ISOLATED = 1
-* **firstMaskChange (ref?[StageMaskChange])**: A reference to the first **StageMaskChange** event.
-* **firstPivotChange (ref?[StagePivotChange])**: A reference to the first **StagePivotChange** event.
-* **firstStyleChange (ref?[StageStyleChange])**: A reference to the first **StageStyleChange** event.
-* **firstTransformChange (ref?[StageTransformChange])**: A reference to the first **StageTransformChange** event.
-
-## StageMaskChange
-
-An event that controls the lane and size of a stage's mask.
-
-### Fields
-
-* **stage (ref[Stage])**: A reference to the **Stage** entity this event belongs to.
-* **#BEAT (float)**
-* **lane (float)**
-* **size (float)**
-* **ease (EaseType)**
-* **next (ref?[StageMaskChange])**: A reference to the next **StageMaskChange** event.
-
-## StagePivotChange
-
-An event that controls the reference point for note and lane movement.
-
-### Fields
-
-* **stage (ref[Stage])**: A reference to the **Stage** entity this event belongs to.
-* **#BEAT (float)**
-* **lane (float)**
-* **divisionSize (float)**: The number of lanes between dividers
-* **divisionParity (DivisionParity)**: Whether the pivot falls on a divider (even) or between dividers (odd). Takes on one of the following values:
-  * EVEN = 0
-  * ODD = 1
-* **yOffset (float)**: Vertical offset of the judge line. A value of 0 places the judge line at its default position; positive values move it up the stage.
-* **yBeatOffset (float)**: Additional vertical offset expressed in beats. Resolved at preprocess time as an extra contribution to yOffset equal to `yBeatOffset * 60 / bpm / preempt_time()`, where `bpm` is the BPM at this event's beat and `preempt_time()` is the current note-speed-derived preempt time in seconds.
-* **ease (EaseType)**
-* **next (ref?[StagePivotChange])**: A reference to the next **StagePivotChange** event.
-
-## StageStyleChange
-
-An event that controls the visual style of a stage.
-
-### Fields
-
-* **stage (ref[Stage])**: A reference to the **Stage** entity this event belongs to.
-* **#BEAT (float)**
-* **judgeLineColor (JudgeLineColor)**
-  * NEUTRAL = 0
-  * RED = 1
-  * GREEN = 2
-  * BLUE = 3
-  * YELLOW = 4
-  * PURPLE = 5
-  * CYAN = 6
-  * BLACK = 7
-* **judgeLineStyle (JudgeLineStyle)**: How the judge line is drawn. Takes on one of the following values:
-  * DEFAULT = 0
-  * SINGLE_LINE = 1
-* **leftBorderStyle (StageBorderStyle)**:
-  * DEFAULT = 0
-  * LIGHT = 1
-  * DISABLED = 2
-  * MEDIUM = 3
-* **rightBorderStyle (StageBorderStyle)**:
-  * DEFAULT = 0
-  * LIGHT = 1
-  * DISABLED = 2
-  * MEDIUM = 3
-* **fullWidth (bool)**: When true, the lane (background, dividers, and borders) is hidden and the judge line is drawn to a high width. Defaults to false.
-* **laneAlpha (float)**
-* **judgeLineAlpha (float)**
-* **divisionLineAlpha (float)**: Multiplies the alpha of the lane dividers (on top of `laneAlpha`), letting the dividers fade independently of the lane background, judge line, and borders. Defaults to 1.
-* **noteAlpha (float)**: Multiplies the alpha of the notes currently on the stage, including connectors. Defaults to 1.
-* **ease (EaseType)**
-* **next (ref?[StageStyleChange])**: A reference to the next **StageStyleChange** event.
-
-## StageTransformChange
-
-A transform applied to a stage.
-
-### Fields
-
-* **stage (ref[Stage])**: A reference to the **Stage** entity this event belongs to.
-* **#BEAT (float)**
-* **rotate (float)**: Rotation of the stage in degrees about its default judge-line center (the stage's pivot `yOffset` does not move the rotation center). Positive values match the camera `rotate` direction. Defaults to 0.
-* **xLaneTranslate (float)**: Horizontal translation of the stage, in lane-width units. The direction respects the camera rotation and the amount respects the camera zoom. Defaults to 0.
-* **yLaneTranslate (float)**: Vertical translation of the stage, in the same lane-width units as `xLaneTranslate` (positive moves the stage up the screen, in the camera's rotated frame). Defaults to 0.
-* **anchor (StageTransformAnchor)**: Where the vertical translation is measured from. Takes on one of the following values:
-  * DEFAULT = 0
-  * CENTER = 1
-* **ease (EaseType)**
-* **next (ref?[StageTransformChange])**: A reference to the next **StageTransformChange** event on the same stage.
 
 ## #BPM_CHANGE
 
@@ -175,8 +52,7 @@ Comprised of many archetypes according to the following naming scheme:
 
 * **#BEAT (float)**
 * **#TIMESCALE_GROUP (ref[#TIMESCALE_GROUP])**: The timescale group of the note.
-* **stage (ref?[Stage])**: An optional reference to the **Stage** entity this note belongs to.
-* **lane (float)**: The lane for the center of the note. When **stage** is set, this is interpreted relative to the pivot's lane at this note's beat (positive if the note is to the right of the pivot). When **stage** is not set, this is centered at 0 with typical values from -5.5 to 5.5 (the edges of the stage are at lane -6 and 6).
+* **lane (float)**: The lane for the center of the note, centered at 0 with typical values from -5.5 to 5.5 (the edges of the stage are at lane -6 and 6).
 * **size (float)**: The size in lanes of *half* the note. E.g. a note of size 1 would take up two lanes and have an extent of (lane - size) to (lane + size). Typically ranges from 0.5 to 6.
 * **direction (Direction)**: The direction of the note, for flicks. Has no effect on other notes. Takes on one of the following values:
   * UP_OMNI = 0
@@ -213,29 +89,8 @@ Comprised of many archetypes according to the following naming scheme:
   * GUIDE_CYAN = 107
   * GUIDE_BLACK = 108
 * **segmentAlpha**: The alpha this note is at for guide connectors.
-* **segmentLayer**: The z-layer the guide connector should be drawn at. Takes on one of the following values:
-  * TOP = 0
-  * BOTTOM = 1
-  * UNDER = 2
-  * OVER = 3
-* **segmentThroughJudgeLine**: Whether connectors in this segment should draw themselves passing through the judge line rather than cutting off there. Defaults to false.
-* **segmentPresentation**: How the connectors for this segment are drawn. Takes on one of the following values:
-  * DEFAULT = 0
-  * FULL_SCREEN = 1
 * **attachHead (ref?[Note])**: The optional head the note attaches to for its **lane**, **size**, and **effective timescale**.
 * **attachTail (ref?[Note])**: The optional tail the note attaches to for its **lane**, **size**, and **effective timescale**.
-* **effectKind (EffectKind)**: What kind of sound effect the note plays when hit. Takes on one of the following values:
-  * DEFAULT = 0
-  * NONE = 1
-  * NORM_BASIC = 2
-  * NORM_FLICK = 3
-  * NORM_TRACE = 4
-  * NORM_TICK = 5
-  * CRIT_BASIC = 6
-  * CRIT_FLICK = 7
-  * CRIT_TRACE = 8
-  * CRIT_TICK = 9
-  * DAMAGE = 10
 
 ## Connector
 

@@ -686,81 +686,22 @@ def get_note_particles(kind: NoteKind, direction: FlickDirection) -> NoteParticl
     return result
 
 
-class NoteEffectKind(IntEnum):
-    DEFAULT = 0
-    NONE = 1
-    NORM_BASIC = 2
-    NORM_FLICK = 3
-    NORM_TRACE = 4
-    NORM_TICK = 5
-    CRIT_BASIC = 6
-    CRIT_FLICK = 7
-    CRIT_TRACE = 8
-    CRIT_TICK = 9
-    DAMAGE = 10
-
-
-def get_note_effect_kind(kind: NoteKind, override: NoteEffectKind = NoteEffectKind.DEFAULT) -> NoteEffectKind:
-    match override:
-        case NoteEffectKind.DEFAULT:
-            match kind:
-                case (
-                    NoteKind.NORM_TAP
-                    | NoteKind.NORM_RELEASE
-                    | NoteKind.NORM_HEAD_TAP
-                    | NoteKind.NORM_HEAD_RELEASE
-                    | NoteKind.NORM_TAIL_TAP
-                    | NoteKind.NORM_TAIL_RELEASE
-                    | NoteKind.CRIT_RELEASE
-                    | NoteKind.CRIT_HEAD_TAP
-                    | NoteKind.CRIT_HEAD_RELEASE
-                    | NoteKind.CRIT_TAIL_TAP
-                    | NoteKind.CRIT_TAIL_RELEASE
-                ):
-                    return NoteEffectKind.NORM_BASIC
-                case (
-                    NoteKind.NORM_FLICK
-                    | NoteKind.NORM_TRACE_FLICK
-                    | NoteKind.NORM_HEAD_FLICK
-                    | NoteKind.NORM_HEAD_TRACE_FLICK
-                    | NoteKind.NORM_TAIL_FLICK
-                    | NoteKind.NORM_TAIL_TRACE_FLICK
-                ):
-                    return NoteEffectKind.NORM_FLICK
-                case NoteKind.NORM_TRACE | NoteKind.NORM_HEAD_TRACE | NoteKind.NORM_TAIL_TRACE:
-                    return NoteEffectKind.NORM_TRACE
-                case NoteKind.NORM_TICK:
-                    return NoteEffectKind.NORM_TICK
-                case NoteKind.CRIT_TAP:
-                    return NoteEffectKind.CRIT_BASIC
-                case (
-                    NoteKind.CRIT_FLICK
-                    | NoteKind.CRIT_TRACE_FLICK
-                    | NoteKind.CRIT_HEAD_FLICK
-                    | NoteKind.CRIT_HEAD_TRACE_FLICK
-                    | NoteKind.CRIT_TAIL_FLICK
-                    | NoteKind.CRIT_TAIL_TRACE_FLICK
-                ):
-                    return NoteEffectKind.CRIT_FLICK
-                case NoteKind.CRIT_TRACE | NoteKind.CRIT_HEAD_TRACE | NoteKind.CRIT_TAIL_TRACE:
-                    return NoteEffectKind.CRIT_TRACE
-                case NoteKind.CRIT_TICK:
-                    return NoteEffectKind.CRIT_TICK
-                case NoteKind.HIDE_TICK | NoteKind.HIDE_DAMAGE_TICK | NoteKind.ANCHOR:
-                    return NoteEffectKind.NONE
-                case NoteKind.DAMAGE:
-                    return NoteEffectKind.DAMAGE
-                case _:
-                    assert_never(kind)
-        case _:
-            return override
-
-
-def get_note_effect(kind: NoteEffectKind, judgment: Judgment):
+def get_note_effect(kind: NoteKind, judgment: Judgment):
     result = Effect(-1)
-    assert kind != NoteEffectKind.DEFAULT, "Unexpected NoteEffectKind.DEFAULT argument to get_note_effect"
     match kind:
-        case NoteEffectKind.NORM_BASIC:
+        case (
+            NoteKind.NORM_TAP
+            | NoteKind.NORM_RELEASE
+            | NoteKind.NORM_HEAD_TAP
+            | NoteKind.NORM_HEAD_RELEASE
+            | NoteKind.NORM_TAIL_TAP
+            | NoteKind.NORM_TAIL_RELEASE
+            | NoteKind.CRIT_RELEASE
+            | NoteKind.CRIT_HEAD_TAP
+            | NoteKind.CRIT_HEAD_RELEASE
+            | NoteKind.CRIT_TAIL_TAP
+            | NoteKind.CRIT_TAIL_RELEASE
+        ):
             match judgment:
                 case Judgment.PERFECT:
                     result @= Effects.normal_perfect
@@ -772,7 +713,14 @@ def get_note_effect(kind: NoteEffectKind, judgment: Judgment):
                     result @= EMPTY_EFFECT
                 case _:
                     assert_never(judgment)
-        case NoteEffectKind.NORM_FLICK:
+        case (
+            NoteKind.NORM_FLICK
+            | NoteKind.NORM_TRACE_FLICK
+            | NoteKind.NORM_HEAD_FLICK
+            | NoteKind.NORM_HEAD_TRACE_FLICK
+            | NoteKind.NORM_TAIL_FLICK
+            | NoteKind.NORM_TAIL_TRACE_FLICK
+        ):
             match judgment:
                 case Judgment.PERFECT:
                     result @= Effects.flick_perfect
@@ -784,39 +732,46 @@ def get_note_effect(kind: NoteEffectKind, judgment: Judgment):
                     result @= EMPTY_EFFECT
                 case _:
                     assert_never(judgment)
-        case NoteEffectKind.NORM_TRACE:
+        case NoteKind.NORM_TRACE | NoteKind.NORM_HEAD_TRACE | NoteKind.NORM_TAIL_TRACE:
             if judgment != Judgment.MISS:
                 result @= first_available_effect(Effects.normal_trace, Effects.normal_perfect)
             else:
                 result @= EMPTY_EFFECT
-        case NoteEffectKind.NORM_TICK:
+        case NoteKind.NORM_TICK:
             if judgment != Judgment.MISS:
                 result @= first_available_effect(Effects.normal_tick, Effects.normal_perfect)
             else:
                 result @= EMPTY_EFFECT
-        case NoteEffectKind.CRIT_BASIC:
+        case NoteKind.CRIT_TAP:
             if judgment != Judgment.MISS:
                 result @= first_available_effect(Effects.critical_tap, Effects.normal_perfect)
             else:
                 result @= EMPTY_EFFECT
-        case NoteEffectKind.CRIT_FLICK:
+        case (
+            NoteKind.CRIT_FLICK
+            | NoteKind.CRIT_TRACE_FLICK
+            | NoteKind.CRIT_HEAD_FLICK
+            | NoteKind.CRIT_HEAD_TRACE_FLICK
+            | NoteKind.CRIT_TAIL_FLICK
+            | NoteKind.CRIT_TAIL_TRACE_FLICK
+        ):
             if judgment != Judgment.MISS:
                 result @= first_available_effect(Effects.critical_flick, Effects.flick_perfect)
             else:
                 result @= EMPTY_EFFECT
-        case NoteEffectKind.CRIT_TRACE:
+        case NoteKind.CRIT_TRACE | NoteKind.CRIT_HEAD_TRACE | NoteKind.CRIT_TAIL_TRACE:
             if judgment != Judgment.MISS:
                 result @= first_available_effect(Effects.critical_trace, Effects.normal_perfect)
             else:
                 result @= EMPTY_EFFECT
-        case NoteEffectKind.CRIT_TICK:
+        case NoteKind.CRIT_TICK:
             if judgment != Judgment.MISS:
                 result @= first_available_effect(Effects.critical_tick, Effects.normal_perfect)
             else:
                 result @= EMPTY_EFFECT
-        case NoteEffectKind.NONE:
+        case NoteKind.HIDE_TICK | NoteKind.HIDE_DAMAGE_TICK | NoteKind.ANCHOR:
             result @= EMPTY_EFFECT
-        case NoteEffectKind.DAMAGE:
+        case NoteKind.DAMAGE:
             if judgment == Judgment.MISS:
                 result @= Effects.normal_good
             else:
@@ -828,7 +783,6 @@ def get_note_effect(kind: NoteEffectKind, judgment: Judgment):
 
 def play_note_hit_effects(
     kind: NoteKind,
-    effect_kind: NoteEffectKind,
     lane: float,
     size: float,
     direction: FlickDirection,
@@ -844,8 +798,7 @@ def play_note_hit_effects(
     def place(q):
         return transform.transform_quad(q)
 
-    # Damage with overridden sfx can play, so this goes before the damage check
-    sfx = get_note_effect(effect_kind, judgment)
+    sfx = get_note_effect(kind, judgment)
     if Options.sfx_enabled and not Options.auto_sfx and not is_watch() and sfx.is_available:
         sfx.play(SFX_DISTANCE)
     if kind == NoteKind.DAMAGE and judgment == Judgment.PERFECT:
@@ -922,7 +875,7 @@ def get_note_haptic_feedback(kind: NoteKind, judgment: Judgment) -> HapticType:
             return HapticType.NONE
 
 
-def schedule_note_auto_sfx(kind: NoteEffectKind, target_time: float):
+def schedule_note_auto_sfx(kind: NoteKind, target_time: float):
     if not Options.sfx_enabled:
         return
     if not Options.auto_sfx:
@@ -932,7 +885,7 @@ def schedule_note_auto_sfx(kind: NoteEffectKind, target_time: float):
         sfx.schedule(target_time, SFX_DISTANCE)
 
 
-def schedule_note_sfx(kind: NoteEffectKind, judgment: Judgment, target_time: float):
+def schedule_note_sfx(kind: NoteKind, judgment: Judgment, target_time: float):
     if not Options.sfx_enabled:
         return
     sfx = get_note_effect(kind, judgment)

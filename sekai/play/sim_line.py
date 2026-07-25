@@ -3,6 +3,7 @@ from sonolus.script.runtime import time
 
 from sekai.debug import DISABLE_NOTES
 from sekai.lib import archetype_names
+from sekai.lib.layout import IDENTITY_AFFINE_TRANSFORM
 from sekai.lib.sim_line import draw_sim_line
 from sekai.lib.timescale import group_hide_notes, update_timescale_group
 from sekai.play.note import BaseNote
@@ -21,9 +22,6 @@ class SimLine(PlayArchetype):
         if DISABLE_NOTES:
             return
         self.spawn_time = min(self.left.start_time, self.right.start_time)
-        end_time = max(self.left.target_time, self.right.target_time) + 1.0
-        self.left.extend_stage_windows(self.spawn_time - 1.0, end_time)
-        self.right.extend_stage_windows(self.spawn_time - 1.0, end_time)
 
     def spawn_order(self) -> float:
         if DISABLE_NOTES:
@@ -52,10 +50,10 @@ class SimLine(PlayArchetype):
             right_lane=self.right.visual_lane,
             right_visual_progress=self.right.visual_progress,
             right_target_time=self.right.target_time,
-            left_transform=self.left._basic_visual_stage_transform().transform(),
-            right_transform=self.right._basic_visual_stage_transform().transform(),
-            left_note_alpha=self.left.visual_note_alpha,
-            right_note_alpha=self.right.visual_note_alpha,
+            left_transform=IDENTITY_AFFINE_TRANSFORM,
+            right_transform=IDENTITY_AFFINE_TRANSFORM,
+            left_note_alpha=1.0,
+            right_note_alpha=1.0,
         )
 
     @property

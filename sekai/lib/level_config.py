@@ -16,9 +16,6 @@ class EngineRevision(IntEnum):
 class LevelConfig:
     revision: EngineRevision
     score_mode: ScoreMode
-    dynamic_stages: bool
-    has_stage_transforms: bool
-    skip_default_stage: bool
 
 
 def init_level_config(

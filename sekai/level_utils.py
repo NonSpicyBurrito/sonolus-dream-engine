@@ -12,22 +12,13 @@ from sonolus.script.archetype import PlayArchetype
 from sonolus.script.level import Level, LevelData
 from sonolus.script.timing import TimescaleEase
 
-from sekai.lib.connector import ConnectorKind, ConnectorLayer, SegmentPresentation
+from sekai.lib.connector import ConnectorKind
 from sekai.lib.ease import EaseType
-from sekai.lib.layout import FlickDirection, StageTransformAnchor, ZoomVerticalAlign
+from sekai.lib.layout import FlickDirection
 from sekai.lib.level_config import EngineRevision
 from sekai.lib.note import NoteKind
-from sekai.lib.stage import DivisionParity, JudgeLineColor, JudgeLineStyle, StageBorderStyle
 from sekai.play.bpm_change import BpmChange
 from sekai.play.connector import Connector
-from sekai.play.dynamic_stage import (
-    CameraChange,
-    DynamicStage,
-    StageMaskChange,
-    StagePivotChange,
-    StageStyleChange,
-    StageTransformChange,
-)
 from sekai.play.initialization import Initialization
 from sekai.play.note import NOTE_ARCHETYPES, BaseNote
 from sekai.play.sim_line import SimLine
@@ -108,90 +99,17 @@ class LevelTimescaleGroup:
 
 
 @dataclass
-class LevelStageMaskChange:
-    beat: float
-    lane: float
-    size: float
-    ease: EaseType = EaseType.LINEAR
-
-
-@dataclass
-class LevelStagePivotChange:
-    beat: float
-    lane: float
-    division_size: float
-    division_parity: DivisionParity
-    abs_y_offset: float
-    y_beat_offset: float
-    ease: EaseType = EaseType.LINEAR
-
-
-@dataclass
-class LevelStageStyleChange:
-    beat: float
-    judge_line_color: JudgeLineColor
-    left_border_style: StageBorderStyle
-    right_border_style: StageBorderStyle
-    lane_alpha: float
-    judge_line_alpha: float
-    judge_line_style: JudgeLineStyle = JudgeLineStyle.DEFAULT
-    full_width: bool = False
-    alpha: float = 1.0  # Deprecated
-    division_line_alpha: float = 1.0
-    note_alpha: float = 1.0
-    ease: EaseType = EaseType.LINEAR
-
-
-@dataclass
-class LevelStageTransformChange:
-    beat: float
-    rotate: float = 0.0
-    x_lane_translate: float = 0.0
-    y_lane_translate: float = 0.0
-    anchor: StageTransformAnchor = StageTransformAnchor.DEFAULT
-    ease: EaseType = EaseType.LINEAR
-
-
-@dataclass
-class LevelStage:
-    from_start: bool = False
-    until_end: bool = False
-    mask_changes: list[LevelStageMaskChange] = field(default_factory=list)
-    pivot_changes: list[LevelStagePivotChange] = field(default_factory=list)
-    style_changes: list[LevelStageStyleChange] = field(default_factory=list)
-    transform_changes: list[LevelStageTransformChange] = field(default_factory=list)
-
-
-@dataclass
-class LevelCameraChange:
-    beat: float
-    lane: float = 0.0
-    size: float = 6.0
-    zoom: float = 1.0
-    zoom_target_lane: float = 0.0
-    zoom_target_y: float = 0.0
-    zoom_vertical_align: ZoomVerticalAlign = ZoomVerticalAlign.DEFAULT
-    rotate: float = 0.0
-    stage_tilt: float = 1.0
-    ease: EaseType = EaseType.LINEAR
-
-
-@dataclass
 class LevelNote:
     beat: float
     lane: float
     size: float
     kind: NoteKind
     timescale_group: LevelTimescaleGroup | None = None
-    stage: LevelStage | None = None
     direction: FlickDirection = FlickDirection.UP_OMNI
     is_fake: bool = False
     is_separator: bool = False
     segment_kind: ConnectorKind = ConnectorKind.NONE
     segment_alpha: float = 1.0
-    segment_layer: ConnectorLayer = ConnectorLayer.TOP
-    segment_through_judge_line: bool = False
-    segment_presentation: SegmentPresentation = SegmentPresentation.DEFAULT
     connector_ease: EaseType = EaseType.LINEAR
     attach: LevelSlide | None = None
 
@@ -201,7 +119,7 @@ class LevelSlide:
     notes: list[LevelNote] = field(default_factory=list)
 
 
-type LevelEntities = LevelBpmChange | LevelTimescaleGroup | LevelNote | LevelSlide | LevelStage | LevelCameraChange
+type LevelEntities = LevelBpmChange | LevelTimescaleGroup | LevelNote | LevelSlide
 
 
 def _note_archetype_for(kind: NoteKind, is_fake: bool) -> type[PlayArchetype]:
@@ -219,8 +137,6 @@ def build_level(
 ) -> Level:
     bpm_changes: list[LevelBpmChange] = []
     level_ts_groups: list[LevelTimescaleGroup] = []
-    level_stages: list[LevelStage] = []
-    level_camera_changes: list[LevelCameraChange] = []
     top_notes: list[LevelNote] = []
     slides: list[LevelSlide] = []
 
@@ -229,10 +145,6 @@ def build_level(
             bpm_changes.append(entity)
         elif isinstance(entity, LevelTimescaleGroup):
             level_ts_groups.append(entity)
-        elif isinstance(entity, LevelStage):
-            level_stages.append(entity)
-        elif isinstance(entity, LevelCameraChange):
-            level_camera_changes.append(entity)
         elif isinstance(entity, LevelNote):
             top_notes.append(entity)
         elif isinstance(entity, LevelSlide):
@@ -259,14 +171,6 @@ def build_level(
             out_entities.extend(group_entities)
         return default_ts_group
 
-    stage_map: dict[int, DynamicStage] = {}
-    for level_stage in level_stages:
-        stage, stage_entities = _build_stage(level_stage)
-        stage_map[id(level_stage)] = stage
-        out_entities.extend(stage_entities)
-
-    first_camera = _build_camera_changes(level_camera_changes, out_entities)
-
     note_entities: list[BaseNote] = []
     slide_non_attached: dict[int, list[BaseNote]] = {}
 
@@ -282,13 +186,8 @@ def build_level(
             "is_separator": level_note.is_separator or force_separator,
             "segment_kind": level_note.segment_kind,
             "segment_alpha": level_note.segment_alpha,
-            "segment_layer": level_note.segment_layer,
-            "segment_through_judge_line": level_note.segment_through_judge_line,
-            "segment_presentation": level_note.segment_presentation,
             "timescale_group": ts_group.ref(),
         }
-        if level_note.stage is not None:
-            kwargs["stage_ref"] = stage_map[id(level_note.stage)].ref()
         note = cast(BaseNote, archetype_cls(**kwargs))
         note_entities.append(note)
         out_entities.append(note)
@@ -369,8 +268,6 @@ def build_level(
         revision=EngineRevision.LATEST,
         initial_life=1000,
     )
-    if first_camera is not None:
-        initialization.first_camera_ref = first_camera.ref()
     out_entities.insert(0, initialization)
 
     sorted_entities = sorted(
@@ -521,116 +418,6 @@ def _build_timescale_group(
         change_entities.append(change)
     group.first_ref = change_entities[0].ref()
     return group, [group, *change_entities]
-
-
-def _build_stage(level_stage: LevelStage) -> tuple[DynamicStage, list[PlayArchetype]]:
-    stage = DynamicStage(from_start=level_stage.from_start, until_end=level_stage.until_end)
-    extra: list[PlayArchetype] = [stage]
-
-    mask_events = [
-        StageMaskChange(
-            stage_ref=stage.ref(),
-            beat=m.beat,
-            lane=m.lane,
-            size=m.size,
-            ease=m.ease,
-        )
-        for m in sorted(level_stage.mask_changes, key=lambda c: c.beat)
-    ]
-    _chain_next_refs(mask_events)
-    if mask_events:
-        stage.first_mask_change_ref = mask_events[0].ref()
-    extra.extend(mask_events)
-
-    pivot_events = [
-        StagePivotChange(
-            stage_ref=stage.ref(),
-            beat=p.beat,
-            lane=p.lane,
-            division_size=p.division_size,
-            division_parity=p.division_parity,
-            abs_y_offset=p.abs_y_offset,
-            y_beat_offset=p.y_beat_offset,
-            ease=p.ease,
-        )
-        for p in sorted(level_stage.pivot_changes, key=lambda c: c.beat)
-    ]
-    _chain_next_refs(pivot_events)
-    if pivot_events:
-        stage.first_pivot_change_ref = pivot_events[0].ref()
-    extra.extend(pivot_events)
-
-    style_events = [
-        StageStyleChange(
-            stage_ref=stage.ref(),
-            beat=s.beat,
-            judge_line_color=s.judge_line_color,
-            judge_line_style=s.judge_line_style,
-            left_border_style=s.left_border_style,
-            right_border_style=s.right_border_style,
-            full_width=s.full_width,
-            alpha=s.alpha,
-            lane_alpha=s.lane_alpha,
-            judge_line_alpha=s.judge_line_alpha,
-            division_line_alpha=s.division_line_alpha,
-            note_alpha=s.note_alpha,
-            ease=s.ease,
-        )
-        for s in sorted(level_stage.style_changes, key=lambda c: c.beat)
-    ]
-    _chain_next_refs(style_events)
-    if style_events:
-        stage.first_style_change_ref = style_events[0].ref()
-    extra.extend(style_events)
-
-    transform_events = [
-        StageTransformChange(
-            stage_ref=stage.ref(),
-            beat=tr.beat,
-            rotate=tr.rotate,
-            x_lane_translate=tr.x_lane_translate,
-            y_lane_translate=tr.y_lane_translate,
-            anchor=tr.anchor,
-            ease=tr.ease,
-        )
-        for tr in sorted(level_stage.transform_changes, key=lambda c: c.beat)
-    ]
-    _chain_next_refs(transform_events)
-    if transform_events:
-        stage.first_transform_change_ref = transform_events[0].ref()
-    extra.extend(transform_events)
-
-    return stage, extra
-
-
-def _build_camera_changes(
-    level_cameras: list[LevelCameraChange], out_entities: list[PlayArchetype]
-) -> CameraChange | None:
-    if not level_cameras:
-        return None
-    camera_entities = [
-        CameraChange(
-            beat=c.beat,
-            lane=c.lane,
-            size=c.size,
-            zoom=c.zoom,
-            zoom_target_lane=c.zoom_target_lane,
-            zoom_target_y=c.zoom_target_y,
-            zoom_vertical_align=c.zoom_vertical_align,
-            rotate=c.rotate,
-            stage_tilt=c.stage_tilt,
-            ease=c.ease,
-        )
-        for c in sorted(level_cameras, key=lambda c: c.beat)
-    ]
-    _chain_next_refs(camera_entities)
-    out_entities.extend(camera_entities)
-    return camera_entities[0]
-
-
-def _chain_next_refs(events: list) -> None:
-    for i in range(len(events) - 1):
-        events[i].next_ref = events[i + 1].ref()
 
 
 def _emit_sim_lines(note_entities: list[BaseNote], out_entities: list[PlayArchetype]) -> None:

@@ -7,7 +7,7 @@ from sonolus.script.interval import lerp, unlerp_clamped
 from sonolus.script.sprite import Sprite
 from sonolus.script.timing import beat_to_time
 
-from sekai.lib.connector import ConnectorKind, ConnectorLayer, SegmentPresentation
+from sekai.lib.connector import ConnectorKind
 from sekai.lib.ease import EaseType, ease
 from sekai.lib.layer import (
     LAYER_NOTE_ARROW,
@@ -26,9 +26,7 @@ from sekai.lib.note import (
 )
 from sekai.lib.options import Options
 from sekai.lib.skin import ArrowRenderType, ArrowSpriteSet, BodyRenderType, BodySpriteSet
-from sekai.lib.stage import get_stage_props
 from sekai.play.note import derive_note_archetypes
-from sekai.preview.dynamic_stage import PreviewDynamicStage
 from sekai.preview.layout import (
     PreviewData,
     get_adjusted_time,
@@ -46,7 +44,6 @@ from sekai.preview.layout import (
 
 class PreviewBaseNote(PreviewArchetype):
     beat: StandardImport.BEAT
-    stage_ref: EntityRef[PreviewDynamicStage] = imported(name="stage")
     lane: float = imported()
     size: float = imported()
     direction: FlickDirection = imported()
@@ -55,9 +52,6 @@ class PreviewBaseNote(PreviewArchetype):
     connector_ease: EaseType = imported(name="connectorEase")
     segment_kind: ConnectorKind = imported(name="segmentKind")
     segment_alpha: float = imported(name="segmentAlpha")
-    segment_layer: ConnectorLayer = imported(name="segmentLayer")
-    segment_through_judge_line: bool = imported(name="segmentThroughJudgeLine")
-    segment_presentation: SegmentPresentation = imported(name="segmentPresentation")
     attach_head_ref: EntityRef[PreviewBaseNote] = imported(name="attachHead")
     attach_tail_ref: EntityRef[PreviewBaseNote] = imported(name="attachTail")
     next_ref: EntityRef[PreviewBaseNote] = imported(name="next")
@@ -65,7 +59,6 @@ class PreviewBaseNote(PreviewArchetype):
 
     kind: NoteKind = entity_data()
     data_init_done: bool = entity_data()
-    rel_lane: float = entity_data()
     target_time: float = entity_data()
 
     def init_data(self):
@@ -81,11 +74,6 @@ class PreviewBaseNote(PreviewArchetype):
             self.direction = mirror_flick_direction(self.direction)
 
         self.target_time = beat_to_time(self.beat)
-
-        if self.stage_ref.index > 0:
-            props = get_stage_props(self.stage_ref.get(), self.target_time)
-            self.rel_lane = self.lane
-            self.lane += props.pivot_lane + props.x_lane_translate
 
         if self.next_ref.index > 0:
             self.next_ref.get().prev_ref = self.ref()
@@ -145,10 +133,7 @@ class PreviewBaseNote(PreviewArchetype):
             return 1.0
 
     def _basic_visual_lane_at(self, t: float) -> float:
-        if self.stage_ref.index <= 0:
-            return self.lane
-        props = get_stage_props(self.stage_ref.get(), t)
-        return props.pivot_lane + self.rel_lane + props.x_lane_translate
+        return self.lane
 
     def visual_lane_at(self, t: float) -> float:
         if self.is_attached:

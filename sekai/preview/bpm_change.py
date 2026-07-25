@@ -5,7 +5,6 @@ from sonolus.script.timing import beat_to_time
 
 from sekai.lib import archetype_names
 from sekai.lib.layer import LAYER_BPM_LINE, get_z
-from sekai.lib.level_config import LevelConfig
 from sekai.lib.skin import ActiveSkin
 from sekai.preview.layout import layout_preview_bar_line, print_at_time
 
@@ -22,12 +21,8 @@ class PreviewBpmChange(PreviewArchetype):
         self.time = beat_to_time(self.beat)
 
     def render(self):
-        dynamic = LevelConfig.dynamic_stages
         layout = +Quad
-        if dynamic:
-            layout @= layout_preview_bar_line(self.time, "right_dynamic")
-        else:
-            layout @= layout_preview_bar_line(self.time, "right")
+        layout @= layout_preview_bar_line(self.time, "right")
         ActiveSkin.bpm_change_line.draw(
             layout,
             z=get_z(LAYER_BPM_LINE).tuple,
@@ -39,5 +34,4 @@ class PreviewBpmChange(PreviewArchetype):
             fmt=PrintFormat.BPM,
             color=PrintColor.PURPLE,
             side="right",
-            dynamic=dynamic,
         )

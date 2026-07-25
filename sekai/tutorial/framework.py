@@ -20,9 +20,7 @@ from sekai.lib.connector import (
     CONNECTOR_SLOT_SPAWN_PERIOD,
     CONNECTOR_TRAIL_SPAWN_PERIOD,
     ConnectorKind,
-    ConnectorLayer,
     ConnectorVisualState,
-    SegmentPresentation,
     destroy_looped_particle,
     destroy_looped_sfx,
     draw_connector,
@@ -40,7 +38,6 @@ from sekai.lib.note import (
     draw_note,
     draw_slide_note_head,
     draw_tutorial_note_slot_effects,
-    get_note_effect_kind,
     play_note_hit_effects,
 )
 from sekai.lib.stage import draw_basic_stage
@@ -277,7 +274,6 @@ class QueuedTutorialNotePlayHitEffects(Record):
     def act(self):
         play_note_hit_effects(
             kind=self.note.kind,
-            effect_kind=get_note_effect_kind(self.note.kind),
             lane=self.note.lane,
             size=self.note.size,
             direction=self.note.direction,
@@ -337,13 +333,6 @@ class QueuedTutorialNoteDrawConnectorTo(Record):
             segment_head_alpha=1,
             segment_tail_target_time=tail_target_time,
             segment_tail_alpha=1,
-            layer=ConnectorLayer.TOP,
-            presentation=SegmentPresentation.DEFAULT,
-            bypass_tail_target_time_check=False,
-            head_transform=None,
-            tail_transform=None,
-            head_note_alpha=1.0,
-            tail_note_alpha=1.0,
         )
         if self.effect_index >= 0 and tail_progress < 1 < head_progress and self.active:
             frac = unlerp(head_progress, tail_progress, 1)

@@ -3,6 +3,7 @@ from sonolus.script.runtime import is_replay
 
 from sekai.debug import DISABLE_NOTES
 from sekai.lib import archetype_names
+from sekai.lib.layout import IDENTITY_AFFINE_TRANSFORM
 from sekai.lib.sim_line import draw_sim_line
 from sekai.lib.timescale import group_hide_notes, update_timescale_group
 from sekai.watch.note import WatchBaseNote
@@ -26,8 +27,6 @@ class WatchSimLine(WatchArchetype):
             self.end_time = min(self.left.end_time, self.right.end_time, self.left.target_time)
         else:
             self.end_time = min(self.left.target_time, self.right.target_time)
-        self.left.extend_stage_windows(self.start_time - 1.0, self.end_time + 1.0)
-        self.right.extend_stage_windows(self.start_time - 1.0, self.end_time + 1.0)
 
     def spawn_time(self) -> float:
         if DISABLE_NOTES:
@@ -51,10 +50,10 @@ class WatchSimLine(WatchArchetype):
             right_lane=self.right.visual_lane,
             right_visual_progress=self.right.visual_progress,
             right_target_time=self.right.target_time,
-            left_transform=self.left._basic_visual_stage_transform().transform(),
-            right_transform=self.right._basic_visual_stage_transform().transform(),
-            left_note_alpha=self.left.visual_note_alpha,
-            right_note_alpha=self.right.visual_note_alpha,
+            left_transform=IDENTITY_AFFINE_TRANSFORM,
+            right_transform=IDENTITY_AFFINE_TRANSFORM,
+            left_note_alpha=1.0,
+            right_note_alpha=1.0,
         )
 
     @property

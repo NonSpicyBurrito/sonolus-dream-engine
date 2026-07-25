@@ -103,14 +103,6 @@ export const uscToLevelData = (usc: USC, offset = 0): LevelData => {
                             name: 'segmentAlpha',
                             value: 1,
                         },
-                        {
-                            name: 'segmentLayer',
-                            value: 0,
-                        },
-                        {
-                            name: 'effectKind',
-                            value: 0,
-                        },
                     ],
                 }
 
@@ -216,14 +208,6 @@ export const uscToLevelData = (usc: USC, offset = 0): LevelData => {
                                           (object.connections.length - 1)) *
                                           1 +
                                       (i / (object.connections.length - 1)) * 0.2,
-                            },
-                            {
-                                name: 'segmentLayer',
-                                value: object.active ? 0 : 1,
-                            },
-                            {
-                                name: 'effectKind',
-                                value: 0,
                             },
                         ],
                     }

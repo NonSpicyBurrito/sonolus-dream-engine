@@ -9,7 +9,7 @@ from sonolus.script.interval import clamp, lerp, remap_clamped, unlerp_clamped
 from sonolus.script.particle import Particle, ParticleHandle
 from sonolus.script.quad import Quad, QuadLike
 from sonolus.script.record import Record
-from sonolus.script.runtime import screen, time
+from sonolus.script.runtime import time
 from sonolus.script.sprite import Sprite
 from sonolus.script.timing import beat_to_time
 
@@ -17,14 +17,8 @@ from sekai.lib.buckets import SLIDE_TICK_JUDGMENT_WINDOW
 from sekai.lib.ease import EaseType, ease
 from sekai.lib.effect import Effects
 from sekai.lib.layer import (
-    LAYER_ACTIVE_SLIDE_CONNECTOR_BOTTOM,
-    LAYER_ACTIVE_SLIDE_CONNECTOR_OVER,
-    LAYER_ACTIVE_SLIDE_CONNECTOR_TOP,
-    LAYER_ACTIVE_SLIDE_CONNECTOR_UNDER,
-    LAYER_GUIDE_CONNECTOR_BOTTOM,
-    LAYER_GUIDE_CONNECTOR_OVER,
-    LAYER_GUIDE_CONNECTOR_TOP,
-    LAYER_GUIDE_CONNECTOR_UNDER,
+    LAYER_ACTIVE_SLIDE_CONNECTOR,
+    LAYER_GUIDE_CONNECTOR,
     LAYER_SLOT_GLOW_EFFECT,
     ZIndexes,
     get_z,
@@ -32,9 +26,7 @@ from sekai.lib.layer import (
 from sekai.lib.layout import (
     AffineTransform2d,
     DynamicLayout,
-    StageTransform,
     approach,
-    blend_stage_transform,
     get_alpha,
     iter_slot_lanes,
     layout_circular_effect,
@@ -42,8 +34,6 @@ from sekai.lib.layout import (
     layout_slide_connector_segment,
     layout_slot_glow_effect,
     pre_rotation_vec_at,
-    st_slide_connector_segment,
-    stage_transform_is_identity,
 )
 from sekai.lib.options import Options
 from sekai.lib.particle import ActiveParticles
@@ -52,7 +42,6 @@ from sekai.lib.timescale import iter_timescale_changes_in_group_from_time
 
 CONNECTOR_TRAIL_SPAWN_PERIOD = 0.1
 CONNECTOR_SLOT_SPAWN_PERIOD = 0.2
-CONNECTOR_THROUGH_JUDGE_LINE_DESPAWN_DELAY = 5.0
 CONNECTOR_LENIENCY = 1
 
 
@@ -74,18 +63,6 @@ class ConnectorKind(IntEnum):
     GUIDE_PURPLE = 106
     GUIDE_CYAN = 107
     GUIDE_BLACK = 108
-
-
-class ConnectorLayer(IntEnum):
-    TOP = 0
-    BOTTOM = 1
-    UNDER = 2
-    OVER = 3
-
-
-class SegmentPresentation(IntEnum):
-    DEFAULT = 0
-    FULL_SCREEN = 1
 
 
 ActiveConnectorKind = Literal[
@@ -181,9 +158,7 @@ def get_damage_connector_active_sprite() -> Sprite:
     return result
 
 
-def get_connector_z(
-    kind: ConnectorKind, target_time: float, lane: float, active: bool, layer: ConnectorLayer
-) -> ZIndexes:
+def get_connector_z(kind: ConnectorKind, target_time: float, lane: float, active: bool) -> ZIndexes:
     result = +ZIndexes
     match kind:
         case (
@@ -192,41 +167,13 @@ def get_connector_z(
             | ConnectorKind.ACTIVE_CRITICAL
             | ConnectorKind.ACTIVE_FAKE_CRITICAL
         ):
-            match layer:
-                case ConnectorLayer.TOP:
-                    result @= get_z(
-                        LAYER_ACTIVE_SLIDE_CONNECTOR_TOP,
-                        time=target_time,
-                        lane=lane,
-                        etc=get_active_connector_z_offset(kind, active),
-                        invert_time=True,
-                    )
-                case ConnectorLayer.BOTTOM:
-                    result @= get_z(
-                        LAYER_ACTIVE_SLIDE_CONNECTOR_BOTTOM,
-                        time=target_time,
-                        lane=lane,
-                        etc=get_active_connector_z_offset(kind, active),
-                        invert_time=True,
-                    )
-                case ConnectorLayer.UNDER:
-                    result @= get_z(
-                        LAYER_ACTIVE_SLIDE_CONNECTOR_UNDER,
-                        time=target_time,
-                        lane=lane,
-                        etc=get_active_connector_z_offset(kind, active),
-                        invert_time=True,
-                    )
-                case ConnectorLayer.OVER:
-                    result @= get_z(
-                        LAYER_ACTIVE_SLIDE_CONNECTOR_OVER,
-                        time=target_time,
-                        lane=lane,
-                        etc=get_active_connector_z_offset(kind, active),
-                        invert_time=True,
-                    )
-                case _:
-                    assert_never(layer)
+            result @= get_z(
+                LAYER_ACTIVE_SLIDE_CONNECTOR,
+                time=target_time,
+                lane=lane,
+                etc=get_active_connector_z_offset(kind, active),
+                invert_time=True,
+            )
         case (
             ConnectorKind.GUIDE_NEUTRAL
             | ConnectorKind.GUIDE_RED
@@ -237,53 +184,25 @@ def get_connector_z(
             | ConnectorKind.GUIDE_CYAN
             | ConnectorKind.GUIDE_BLACK
         ):
-            result @= get_guide_connector_layer_z(layer, target_time, lane, kind - ConnectorKind.GUIDE_NEUTRAL)
+            result @= get_z(
+                LAYER_GUIDE_CONNECTOR,
+                time=target_time,
+                lane=lane,
+                etc=kind - ConnectorKind.GUIDE_NEUTRAL,
+                invert_time=True,
+            )
         case ConnectorKind.DAMAGE | ConnectorKind.FAKE_DAMAGE:
-            result @= get_guide_connector_layer_z(layer, target_time, lane, get_active_connector_z_offset(kind, active))
+            result @= get_z(
+                LAYER_GUIDE_CONNECTOR,
+                time=target_time,
+                lane=lane,
+                etc=get_active_connector_z_offset(kind, active),
+                invert_time=True,
+            )
         case ConnectorKind.NONE:
             pass
         case _:
             assert_never(kind)
-    return result
-
-
-def get_guide_connector_layer_z(layer: ConnectorLayer, target_time: float, lane: float, etc: int) -> ZIndexes:
-    result = +ZIndexes
-    match layer:
-        case ConnectorLayer.TOP:
-            result @= get_z(
-                LAYER_GUIDE_CONNECTOR_TOP,
-                time=target_time,
-                lane=lane,
-                etc=etc,
-                invert_time=True,
-            )
-        case ConnectorLayer.BOTTOM:
-            result @= get_z(
-                LAYER_GUIDE_CONNECTOR_BOTTOM,
-                time=target_time,
-                lane=lane,
-                etc=etc,
-                invert_time=True,
-            )
-        case ConnectorLayer.UNDER:
-            result @= get_z(
-                LAYER_GUIDE_CONNECTOR_UNDER,
-                time=target_time,
-                lane=lane,
-                etc=etc,
-                invert_time=True,
-            )
-        case ConnectorLayer.OVER:
-            result @= get_z(
-                LAYER_GUIDE_CONNECTOR_OVER,
-                time=target_time,
-                lane=lane,
-                etc=etc,
-                invert_time=True,
-            )
-        case _:
-            assert_never(layer)
     return result
 
 
@@ -376,40 +295,18 @@ def draw_connector(
     segment_head_alpha: float,
     segment_tail_target_time: float,
     segment_tail_alpha: float,
-    layer: ConnectorLayer,
-    presentation: SegmentPresentation,
-    bypass_tail_target_time_check: bool,
-    head_transform: StageTransform | None,
-    tail_transform: StageTransform | None,
-    head_note_alpha: float,
-    tail_note_alpha: float,
 ):
-    match presentation:
-        case SegmentPresentation.DEFAULT:
-            if (
-                (
-                    head_visual_progress < DynamicLayout.progress_start
-                    and tail_visual_progress < DynamicLayout.progress_start
-                )
-                or (
-                    head_visual_progress > DynamicLayout.progress_cutoff
-                    and tail_visual_progress > DynamicLayout.progress_cutoff
-                )
-                or head_visual_progress == tail_visual_progress
-            ):
-                return
-        case SegmentPresentation.FULL_SCREEN:
-            if head_target_time == tail_target_time or not (
-                min(head_target_time, tail_target_time) <= time() <= max(head_target_time, tail_target_time)
-            ):
-                return
-        case _:
-            assert_never(presentation)
-
-    if Options.disable_fake_notes and is_fake_connector(kind):
+    if (
+        (head_visual_progress < DynamicLayout.progress_start and tail_visual_progress < DynamicLayout.progress_start)
+        or (
+            head_visual_progress > DynamicLayout.progress_cutoff
+            and tail_visual_progress > DynamicLayout.progress_cutoff
+        )
+        or head_visual_progress == tail_visual_progress
+    ):
         return
 
-    if head_note_alpha <= 0 and tail_note_alpha <= 0:
+    if Options.disable_fake_notes and is_fake_connector(kind):
         return
 
     if ease_type == EaseType.NONE:
@@ -476,69 +373,44 @@ def draw_connector(
         case _:
             assert_never(kind)
 
-    head_alpha = (
-        remap_clamped(
-            segment_head_target_time, segment_tail_target_time, segment_head_alpha, segment_tail_alpha, head_target_time
-        )
-        * head_note_alpha
+    head_alpha = remap_clamped(
+        segment_head_target_time, segment_tail_target_time, segment_head_alpha, segment_tail_alpha, head_target_time
     )
-    tail_alpha = (
-        remap_clamped(
-            segment_head_target_time, segment_tail_target_time, segment_head_alpha, segment_tail_alpha, tail_target_time
-        )
-        * tail_note_alpha
+    tail_alpha = remap_clamped(
+        segment_head_target_time, segment_tail_target_time, segment_head_alpha, segment_tail_alpha, tail_target_time
     )
 
-    if time() >= tail_target_time and not bypass_tail_target_time_check:
+    if time() >= tail_target_time:
         return
 
-    z_normal = get_connector_z(kind, segment_head_target_time, segment_head_lane, active=False, layer=layer)
+    z_normal = get_connector_z(kind, segment_head_target_time, segment_head_lane, active=False)
     z_active = +ZIndexes
     if visual_state == ConnectorVisualState.ACTIVE and active_sprite.is_available:
-        z_active @= get_connector_z(kind, segment_head_target_time, segment_head_lane, active=True, layer=layer)
+        z_active @= get_connector_z(kind, segment_head_target_time, segment_head_lane, active=True)
     else:
         z_active @= z_normal
 
-    match presentation:
-        case SegmentPresentation.DEFAULT:
-            draw_connector_default(
-                kind=kind,
-                visual_state=visual_state,
-                ease_type=ease_type,
-                normal_sprite=normal_sprite,
-                active_sprite=active_sprite,
-                z_normal=z_normal,
-                z_active=z_active,
-                head_lane=head_lane,
-                head_size=head_size,
-                head_visual_progress=head_visual_progress,
-                head_target_time=head_target_time,
-                head_ease_frac=head_ease_frac,
-                head_alpha=head_alpha,
-                tail_lane=tail_lane,
-                tail_size=tail_size,
-                tail_visual_progress=tail_visual_progress,
-                tail_target_time=tail_target_time,
-                tail_ease_frac=tail_ease_frac,
-                tail_alpha=tail_alpha,
-                head_transform=head_transform,
-                tail_transform=tail_transform,
-            )
-        case SegmentPresentation.FULL_SCREEN:
-            draw_connector_full_screen(
-                kind=kind,
-                visual_state=visual_state,
-                normal_sprite=normal_sprite,
-                active_sprite=active_sprite,
-                z_normal=z_normal,
-                z_active=z_active,
-                head_target_time=head_target_time,
-                head_alpha=head_alpha,
-                tail_target_time=tail_target_time,
-                tail_alpha=tail_alpha,
-            )
-        case _:
-            assert_never(presentation)
+    draw_connector_default(
+        kind=kind,
+        visual_state=visual_state,
+        ease_type=ease_type,
+        normal_sprite=normal_sprite,
+        active_sprite=active_sprite,
+        z_normal=z_normal,
+        z_active=z_active,
+        head_lane=head_lane,
+        head_size=head_size,
+        head_visual_progress=head_visual_progress,
+        head_target_time=head_target_time,
+        head_ease_frac=head_ease_frac,
+        head_alpha=head_alpha,
+        tail_lane=tail_lane,
+        tail_size=tail_size,
+        tail_visual_progress=tail_visual_progress,
+        tail_target_time=tail_target_time,
+        tail_ease_frac=tail_ease_frac,
+        tail_alpha=tail_alpha,
+    )
 
 
 def draw_connector_default(
@@ -561,8 +433,6 @@ def draw_connector_default(
     tail_target_time: float,
     tail_ease_frac: float,
     tail_alpha: float,
-    head_transform: StageTransform | None = None,
-    tail_transform: StageTransform | None = None,
 ):
     start_visual_progress = clamp(head_visual_progress, DynamicLayout.progress_start, DynamicLayout.progress_cutoff)
     end_visual_progress = clamp(tail_visual_progress, DynamicLayout.progress_start, DynamicLayout.progress_cutoff)
@@ -644,20 +514,11 @@ def draw_connector_default(
     quality = get_connector_quality_option(kind)
     segment_count = max(1, ceil(max(curve_change_scale, alpha_change_scale) * quality * 10))
 
-    has_transform = (
-        head_transform is not None
-        and tail_transform is not None
-        and not (stage_transform_is_identity(head_transform) and stage_transform_is_identity(tail_transform))
-    )
-    if has_transform and head_transform != tail_transform:
-        segment_count = max(segment_count, ceil(15 * quality))
-
     last_travel = start_travel
     last_lane = start_lane
     last_size = start_size
     last_alpha = start_alpha
     last_target_time = lerp(head_target_time, tail_target_time, start_frac)
-    last_interp_frac = start_interp_frac
 
     layout = +Quad
     for i in range(1, segment_count + 1):
@@ -681,29 +542,14 @@ def draw_connector_default(
             1,
         )
 
-        if has_transform:
-            # Satisfy pyright
-            assert head_transform is not None
-            assert tail_transform is not None
-            layout @= st_slide_connector_segment(
-                start_lane=last_lane,
-                start_size=last_size,
-                start_travel=last_travel,
-                end_lane=next_lane,
-                end_size=next_size,
-                end_travel=next_travel,
-                start_transform=blend_stage_transform(head_transform, tail_transform, last_interp_frac).transform(),
-                end_transform=blend_stage_transform(head_transform, tail_transform, next_interp_frac).transform(),
-            )
-        else:
-            layout @= layout_slide_connector_segment(
-                start_lane=last_lane,
-                start_size=last_size,
-                start_travel=last_travel,
-                end_lane=next_lane,
-                end_size=next_size,
-                end_travel=next_travel,
-            )
+        layout @= layout_slide_connector_segment(
+            start_lane=last_lane,
+            start_size=last_size,
+            start_travel=last_travel,
+            end_lane=next_lane,
+            end_size=next_size,
+            end_travel=next_travel,
+        )
 
         draw_connector_quad(layout, visual_state, normal_sprite, active_sprite, z_normal, z_active, base_a)
 
@@ -712,25 +558,6 @@ def draw_connector_default(
         last_size = next_size
         last_alpha = next_alpha
         last_target_time = next_target_time
-        last_interp_frac = next_interp_frac
-
-
-def draw_connector_full_screen(
-    kind: ConnectorKind,
-    visual_state: ConnectorVisualState,
-    normal_sprite: Sprite,
-    active_sprite: Sprite,
-    z_normal: ZIndexes,
-    z_active: ZIndexes,
-    head_target_time: float,
-    head_alpha: float,
-    tail_target_time: float,
-    tail_alpha: float,
-):
-    judge_frac = unlerp_clamped(head_target_time, tail_target_time, time())
-    judge_alpha = lerp(head_alpha, tail_alpha, judge_frac)
-    base_a = clamp(get_alpha(time()) * judge_alpha * get_connector_alpha_option(kind), 0, 1)
-    draw_connector_quad(screen(), visual_state, normal_sprite, active_sprite, z_normal, z_active, base_a)
 
 
 def draw_connector_quad(
@@ -758,7 +585,6 @@ def draw_connector_quad(
 class ActiveConnectorInfo(Record):
     visual_lane: float
     visual_size: float
-    visual_y_offset: float
     input_bounds: Quad
     active_start_time: float
     last_active_time: float
@@ -774,13 +600,12 @@ def update_circular_connector_particle(
     kind: ActiveConnectorKind,
     lane: float,
     replace: bool,
-    y_offset: float = 0.0,
     *,
     transform: AffineTransform2d,
 ):
     if not Options.note_effect_enabled:
         return
-    layout = transform.transform_quad(layout_circular_effect(lane, w=3.5, h=2.1, y_offset=y_offset))
+    layout = transform.transform_quad(layout_circular_effect(lane, w=3.5, h=2.1))
     if replace or handle.id == 0:
         particle = +Particle(-1)
         match kind:
@@ -800,13 +625,12 @@ def update_linear_connector_particle(
     kind: ActiveConnectorKind,
     lane: float,
     replace: bool,
-    y_offset: float = 0.0,
     *,
     transform: AffineTransform2d,
 ):
     if not Options.note_effect_enabled:
         return
-    layout = transform.transform_quad(layout_linear_effect(lane, shear=0, y_offset=y_offset))
+    layout = transform.transform_quad(layout_linear_effect(lane, shear=0))
     particle = +Particle
     if replace or handle.id == 0:
         match kind:
@@ -824,13 +648,12 @@ def update_linear_connector_particle(
 def spawn_linear_connector_trail_particle(
     kind: ActiveConnectorKind,
     lane: float,
-    y_offset: float = 0.0,
     *,
     transform: AffineTransform2d,
 ):
     if not Options.note_effect_enabled:
         return
-    layout = transform.transform_quad(layout_linear_effect(lane, shear=0, y_offset=y_offset))
+    layout = transform.transform_quad(layout_linear_effect(lane, shear=0))
     particle = +Particle
     match kind:
         case ConnectorKind.ACTIVE_NORMAL | ConnectorKind.ACTIVE_FAKE_NORMAL:
@@ -846,7 +669,6 @@ def spawn_connector_slot_particles(
     kind: ActiveConnectorKind,
     lane: float,
     size: float,
-    y_offset: float = 0.0,
     *,
     transform: AffineTransform2d,
 ):
@@ -861,7 +683,7 @@ def spawn_connector_slot_particles(
         case _:
             assert_never(kind)
     for slot_lane in iter_slot_lanes(lane, size):
-        layout = transform.transform_quad(layout_linear_effect(slot_lane, shear=0, y_offset=y_offset))
+        layout = transform.transform_quad(layout_linear_effect(slot_lane, shear=0))
         particle.spawn(layout, duration=0.5 / Options.effect_animation_speed)
 
 
@@ -870,7 +692,6 @@ def draw_connector_slot_glow_effect(
     start_time: float,
     lane: float,
     size: float,
-    y_offset: float = 0.0,
     *,
     transform: AffineTransform2d,
 ):
@@ -883,7 +704,7 @@ def draw_connector_slot_glow_effect(
         case _:
             assert_never(kind)
     height = (3.25 + (cos((time() - start_time) * 8 * pi) + 1) / 2) / 4.25
-    layout = transform.transform_quad(layout_slot_glow_effect(lane, size, height, y_offset=y_offset))
+    layout = transform.transform_quad(layout_slot_glow_effect(lane, size, height))
     z = get_z(LAYER_SLOT_GLOW_EFFECT, start_time, lane, invert_time=True)
     a = remap_clamped(start_time, start_time + 0.25, 0.0, 0.3, time())
     sprite.draw(layout, z=z.tuple, a=a)
