@@ -20,7 +20,7 @@ miss_and_good.ru = "На Miss и Good"
 
 [options.slide_alpha]
 title.en = "Slide Alpha"
-title.ko = "슬라이드 불투명도"
+title.ko = "롱 노트 불투명도"
 title.fr = "Opacité des Slides"
 title.ru = "Прозрачность слайда"
 
@@ -32,7 +32,7 @@ title.ru = "Прозрачность гайда"
 
 [options.stage_cover_mode]
 title.en = "Stage Cover Mode"
-title.ko = "스테이지 커버 모드"
+title.ko = "노트 시작 위치 모드"
 title.fr = "Mode de Masquage de la Scène"
 title.ru = "Режим покрытия сцены"
 
@@ -52,11 +52,11 @@ full_width.ru = "Полная широта"
 
 [options.stage_cover_scroll_speed_compensation]
 title.en = "Stage Cover Note Speed Compensation"
-title.ko = "스테이지 커버 노트 속도 보정"
+title.ko = "노트 시작 위치 노트 속도 보정"
 title.fr = "Compensation de la Vitesse due au Masquage"
 title.ru = "Компенсация скорости ноты покрытия сцены"
 description.en = "Reduces note speed to compensate for the reduced visible area from stage cover."
-description.ko = "스테이지 커버로 인해 줄어든 표시 영역을 보정하기 위해 노트 속도를 낮춥니다."
+description.ko = "노트 시작 위치로 인해 줄어든 표시 영역을 보정하기 위해 노트 속도를 낮춥니다."
 description.fr = "Réduit la vitesse des notes pour compenser la perte de surface d'affichage due au masquage."
 description.ru = "Понижает скорость нот чтобы компенсировать уменьшенную видимую зону от покрытия сцены."
 
@@ -82,7 +82,7 @@ title.ru = "Спрятать UI"
 
 [options.slide_quality]
 title.en = "Slide Quality"
-title.ko = "슬라이드 품질"
+title.ko = "롱 노트 품질"
 title.fr = "Qualité des Slides"
 title.ru = "Качество слайда"
 
@@ -116,7 +116,7 @@ title.ru = "Альтернативный подход изгиба"
 
 [options.disable_timescale]
 title.en = "Disable Timescale"
-title.ko = "시간배율 비활성화"
+title.ko = "시간 배율 비활성화"
 title.fr = "Désactiver l'Échelle de Temps"
 title.ru = "Отключить таймскейл"
 
