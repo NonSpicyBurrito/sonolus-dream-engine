@@ -141,7 +141,7 @@ title.en = "Disable Timescale"
 title.ko = "시간 배율 비활성화"
 title.fr = "Désactiver l'Échelle de Temps"
 title.ru = "Отключить таймскейл"
-title.vi = "Vô hiệu hóa hiệu ứng biến đổi tốc độ Note (Timescale)"
+title.vi = "Vô hiệu hóa hiệu ứng biến đổi tốc độ Note"
 
 [options.disable_fake_notes]
 title.en = "Disable Fake Notes"
